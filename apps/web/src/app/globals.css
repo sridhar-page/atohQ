@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  min-height: 100vh;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.08);
+}
+
+.clinical-card {
+  @apply bg-white border border-slate-200 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.brand-glow {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
