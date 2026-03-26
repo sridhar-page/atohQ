@@ -91,7 +91,7 @@ export default function ReceptionistDashboard() {
       <aside className="w-full md:w-80 bg-white border-r border-slate-200 p-8 flex flex-col gap-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-600 rounded-xl brand-glow flex items-center justify-center text-white font-black">Q</div>
-          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">Q-EASE STAFF</span>
+          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">AtohQ STAFF</span>
         </div>
 
         <nav className="flex-1 space-y-2">

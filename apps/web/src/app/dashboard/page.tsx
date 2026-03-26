@@ -23,6 +23,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSocket } from "@/hooks/useSocket";
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
+
 
 // Services
 import { receptionistService, ReceptionistQueue, ReceptionistStats } from "@/services/receptionist.service";
@@ -38,7 +51,8 @@ const joinSchema = z.object({
 type JoinFormData = z.infer<typeof joinSchema>;
 
 export default function MasterDashboard() {
-  const [activeTab, setActiveTab] = useState<"patient" | "receptionist" | "admin">("receptionist");
+  const [activeTab, setActiveTab] = useState<"patient" | "receptionist" | "admin" | "status">("receptionist");
+
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -52,7 +66,7 @@ export default function MasterDashboard() {
       <aside className="w-full md:w-72 bg-white border-r border-slate-200 p-8 flex flex-col gap-10 sticky top-0 h-screen overflow-y-auto">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-600 rounded-xl brand-glow flex items-center justify-center text-white font-black">Q</div>
-          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">Q-EASE HUB</span>
+          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">AtohQ</span>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -75,6 +89,13 @@ export default function MasterDashboard() {
             active={activeTab === "patient"} 
             onClick={() => setActiveTab("patient")} 
           />
+          <NavButton 
+            icon={<Activity size={20} />} 
+            label="Current Status" 
+            active={activeTab === "status"} 
+            onClick={() => setActiveTab("status")} 
+          />
+
         </nav>
 
         <div className="space-y-4 pt-6 border-t border-slate-100">
@@ -106,6 +127,12 @@ export default function MasterDashboard() {
               <PatientView />
             </motion.div>
           )}
+          {activeTab === "status" && (
+            <motion.div key="status" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <StatusView />
+            </motion.div>
+          )}
+
         </AnimatePresence>
       </main>
     </div>
@@ -145,15 +172,20 @@ function ReceptionistView() {
   useSocket('tokenUpdated', fetchData);
   useSocket('tokenCalled', fetchData);
 
-  const handleAction = async (tokenId: string, action: 'CALL' | 'COMPLETE' | 'NO_SHOW') => {
+  const handleAction = async (tokenId: string, action: 'CALL' | 'COMPLETE' | 'NO_SHOW' | 'COMPLETE_AND_NEXT') => {
     try {
-      await receptionistService.performAction(tokenId, action);
+      if (action === 'COMPLETE_AND_NEXT') {
+        await receptionistService.completeAndNext(tokenId);
+      } else {
+        await receptionistService.performAction(tokenId, action);
+      }
       fetchData();
     } catch (err) {
       console.error(`Failed to perform ${action}:`, err);
       alert(`Action ${action} failed.`);
     }
   };
+
 
   const togglePause = async () => {
     if (!queueData) return;
@@ -217,14 +249,15 @@ function ReceptionistView() {
                   <div className="py-10 text-slate-300 font-black text-xl uppercase tracking-widest italic">No Active Token</div>
                 )}
              </div>
-             <button 
-                disabled={!queueData.serving}
-                onClick={() => queueData.serving && handleAction(queueData.serving.number, 'COMPLETE')}
-                className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-2xl shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
-              >
-                <UserCheck size={24} />
-                COMPLETE & NEXT
-              </button>
+              <button 
+                 disabled={!queueData.serving}
+                 onClick={() => queueData.serving && handleAction(queueData.serving.id, 'COMPLETE_AND_NEXT')}
+                 className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-2xl shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
+               >
+                 <UserCheck size={24} />
+                 COMPLETE & NEXT
+               </button>
+
           </div>
         </section>
 
@@ -302,60 +335,152 @@ function AdminView() {
       </header>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-         <BigStat icon={<Activity className="text-emerald-500" />} label="Uptime" value={metrics?.uptime || "99%"} trend="+0.2%" />
-         <BigStat icon={<Users className="text-blue-500" />} label="Avg. Flow" value={metrics?.avgPatientFlow || "0/hr"} trend="+12%" />
-         <BigStat icon={<Clock className="text-amber-500" />} label="Latency" value={metrics?.systemLatency || "0ms"} trend="-2ms" />
-         <BigStat icon={<ShieldCheck className="text-indigo-500" />} label="Security" value={metrics?.securityScore || "A+"} trend="High" />
+         <BigStat icon={<Users className="text-emerald-500" />} label="Visited Today" value={metrics?.visitedToday?.toString() || "0"} trend="+12% total" />
+         <BigStat icon={<CheckCircle2 className="text-blue-500" />} label="Served Today" value={metrics?.servedToday?.toString() || "0"} trend="High Flow" />
+         <BigStat icon={<Activity className="text-amber-500" />} label="In Queue" value={metrics?.waitingToday?.toString() || "0"} trend="Active" />
+         <BigStat icon={<ShieldCheck className="text-indigo-500" />} label="Active Queues" value={metrics?.activeQueues?.toString() || "0"} trend="Stable" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <section className="lg:col-span-2 space-y-6">
-           <div className="flex items-center justify-between px-2">
-              <h3 className="text-2xl font-black text-slate-900">Departments</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Main Chart Section */}
+        <section className="lg:col-span-8 space-y-6">
+          <div className="glass p-8 rounded-[3rem] brand-glow bg-white border border-slate-100 space-y-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 leading-none">Daily Traffic Overview</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Patient Volume Flow (24h)</p>
+              </div>
               <div className="flex items-center gap-2">
-                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input className="bg-white border border-slate-100 pl-10 pr-4 py-2 rounded-lg text-xs font-bold outline-none focus:border-emerald-500" placeholder="Search..." />
-                 </div>
+                 <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
+                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Live Flow</span>
               </div>
-           </div>
-           <div className="bg-white rounded-4xl border border-slate-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-8">Name</th>
-                    <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Flow</th>
-                    <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Wait</th>
-                    <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-8">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {departments.map((dept) => (
-                    <tr key={dept.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-5 pl-8 text-sm font-bold text-slate-900">{dept.name}</td>
-                      <td className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest">{dept.flow}</td>
-                      <td className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest">{dept.wait}</td>
-                      <td className="p-5 text-right pr-8">
-                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${dept.status === 'Critical' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>{dept.status}</span>
-                      </td>
-                    </tr>
+            </div>
+            
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={insights?.hourlyFlow || []}>
+                  <defs>
+                    <linearGradient id="colorFlow" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="time" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 10, fontWeight: 900, fill: '#94a3b8'}}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 900 }}
+                  />
+                  <Area type="monotone" dataKey="count" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorFlow)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-4">
+             <div className="glass p-8 rounded-[2.5rem] bg-white border border-slate-100 space-y-6">
+                <h4 className="text-lg font-black text-slate-900">Service Efficiency</h4>
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Avg Service Time</span>
+                         <span className="text-lg font-black text-emerald-600">{insights?.serviceStats.avg}m</span>
+                      </div>
+                      <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
+                         <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, (insights?.serviceStats.avg || 0) * 5)}%` }} className="h-full bg-emerald-500 rounded-full" />
+                      </div>
+                   </div>
+                   <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Max Session</span>
+                         <span className="text-lg font-black text-slate-900">{insights?.serviceStats.max}m</span>
+                      </div>
+                      <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
+                         <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, (insights?.serviceStats.max || 0) * 2)}%` }} className="h-full bg-slate-900 rounded-full" />
+                      </div>
+                   </div>
+                   <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Min Session</span>
+                         <span className="text-lg font-black text-slate-900">{insights?.serviceStats.min}m</span>
+                      </div>
+                      <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
+                         <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, (insights?.serviceStats.min || 1) * 10)}%` }} className="h-full bg-slate-400 rounded-full" />
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <h3 className="text-xl font-black text-slate-900">Departments</h3>
+                </div>
+                <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
+                  {departments.slice(0, 3).map((dept) => (
+                    <div key={dept.id} className="p-5 flex items-center justify-between border-b border-slate-50 last:border-0">
+                      <div>
+                         <p className="text-sm font-black text-slate-900">{dept.name}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{dept.flow}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${dept.status === 'Critical' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>{dept.status}</span>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-           </div>
+                </div>
+             </div>
+          </div>
         </section>
 
-        <section className="lg:col-span-1 space-y-6">
-           <div className="glass p-8 rounded-[2.5rem] brand-glow bg-white border border-slate-100 space-y-6">
-              <h4 className="text-lg font-black text-slate-900">Global Insights</h4>
-              <div className="space-y-6">
-                <InsightItem icon={<Users size={16} />} title="Hottest Node" value={insights?.highestTraffic.name || "N/A"} sub="Peak observed now" />
-                <InsightItem icon={<Clock size={16} />} title="System Lag" value={insights?.bottleneck.name || "N/A"} sub="Check gateway-01" />
-                <InsightItem icon={<ArrowUpRight size={16} />} title="Usage Projection" value={insights?.revenueProjection || "Low"} sub="Rising +5%" />
+        {/* Sidebar Insights Section */}
+        <section className="lg:col-span-4 space-y-6">
+           <div className="glass p-8 rounded-[2.5rem] brand-glow bg-slate-900 text-white border border-slate-800 space-y-8 h-full">
+              <div>
+                <h4 className="text-lg font-black italic">Strategic Insights</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Operational Performance</p>
+              </div>
+              
+              <div className="space-y-8">
+                <div className="space-y-4">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-emerald-400"><Users size={20} /></div>
+                      <div>
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Highest Traffic Node</p>
+                         <p className="text-lg font-black leading-none">{insights?.highestTraffic.name || "N/A"}</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-amber-400"><Clock size={20} /></div>
+                      <div>
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Peak Bottleneck</p>
+                         <p className="text-lg font-black leading-none">{insights?.bottleneck.name || "N/A"}</p>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="pt-8 border-t border-white/5 space-y-4">
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Revenue Projection</p>
+                   <p className="text-4xl font-black tracking-tighter text-emerald-400">{insights?.revenueProjection}</p>
+                   <div className="p-4 bg-white/5 rounded-2xl flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest">Growth</span>
+                      <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-black">+14.2%</span>
+                   </div>
+                </div>
+
+                <button className="w-full py-4 bg-emerald-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all">Generate Report</button>
               </div>
            </div>
         </section>
       </div>
+
     </div>
   );
 }
@@ -499,7 +624,161 @@ function BigStat({ icon, label, value, trend }: { icon: React.ReactNode, label: 
   );
 }
 
+function StatusView() {
+  const [data, setData] = useState<ReceptionistQueue | null>(null);
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const qData = await receptionistService.getQueueData();
+      setData(qData);
+    } catch (err) {
+      console.error("Failed to fetch status data:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useSocket('tokenJoined', fetchData);
+  useSocket('tokenUpdated', fetchData);
+  useSocket('tokenCalled', fetchData);
+
+  const allTokens = data ? [
+    ...(data.serving ? [{ ...data.serving, id: data.serving.number, isServing: true }] : []),
+    ...data.queue.map(t => ({ ...t, isServing: false }))
+  ] : [];
+
+  const selectedToken = allTokens.find(t => t.id === selectedTokenId);
+
+  const getStatusMessage = (token: typeof allTokens[0]) => {
+    if (token.isServing) {
+      return `Token ${token.number} is in consultation with doctor.`;
+    }
+    
+    const idx = data?.queue.findIndex(t => t.id === token.id) ?? -1;
+    const waitTime = (idx + 1) * 10;
+
+    if (idx === 0) {
+      return "The next turn is yours.";
+    } else if (idx === 1) {
+      return "There is one more token ahead of you.";
+    } else if (idx > 1) {
+      return `There are ${idx} tokens ahead of you.`;
+    }
+
+    return "Status unknown";
+  };
+
+  if (!data) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-10 max-w-7xl mx-auto">
+      <header className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse-slow"></span>
+          <span className="text-sm font-black text-emerald-600 uppercase tracking-widest">Live Status Hub</span>
+        </div>
+        <h1 className="text-4xl font-black text-slate-900 leading-none tracking-tight">Real-time Queue <br /><span className="text-slate-400">Status & Intel</span></h1>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <section className="lg:col-span-4 space-y-6">
+          <h3 className="text-2xl font-black text-slate-900 px-2">Active Tokens</h3>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
+            {allTokens.map((token) => (
+              <motion.button
+                key={token.id}
+                onClick={() => setSelectedTokenId(token.id)}
+                className={`w-full text-left p-6 rounded-3xl border transition-all shadow-sm flex items-center justify-between group ${
+                  selectedTokenId === token.id 
+                    ? "bg-emerald-600 border-emerald-600 text-white shadow-emerald-100" 
+                    : "bg-white border-slate-100 hover:border-emerald-200"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${
+                    token.isServing 
+                      ? "bg-white/20 text-white" 
+                      : (selectedTokenId === token.id ? "bg-white/20 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600")
+                  }`}>
+                    {token.number.split('-')[1]}
+                  </div>
+                  <div>
+                    <p className={`font-black ${selectedTokenId === token.id ? "text-white" : "text-slate-900"}`}>{token.number}</p>
+                    <p className={`text-xs font-bold uppercase tracking-widest ${selectedTokenId === token.id ? "text-emerald-100" : "text-slate-400"}`}>
+                      {token.isServing ? "SERVING" : "WAITING"}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight size={20} className={selectedTokenId === token.id ? "text-white" : "text-slate-300"} />
+              </motion.button>
+            ))}
+            {allTokens.length === 0 && (
+              <div className="py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">
+                No active tokens in system
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="lg:col-span-8">
+          <AnimatePresence mode="wait">
+            {selectedToken ? (
+              <motion.div
+                key={selectedToken.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="glass p-12 rounded-[3.5rem] brand-glow bg-white border border-slate-100 h-full flex flex-col items-center justify-center text-center space-y-8 min-h-[500px]"
+              >
+                <div className={`w-24 h-24 rounded-full flex items-center justify-center ${selectedToken.isServing ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
+                  {selectedToken.isServing ? <Activity size={48} /> : <UserCheck size={48} />}
+                </div>
+                
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Status Intelligence</span>
+                  <h2 className="text-5xl font-black text-slate-900 tracking-tighter transition-all">{getStatusMessage(selectedToken)}</h2>
+                </div>
+
+                <div className="grid grid-cols-2 gap-8 w-full max-w-md pt-10 border-t border-slate-50">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Patient Name</p>
+                    <p className="text-xl font-black text-slate-900">{selectedToken.name}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Service Desk</p>
+                    <p className="text-xl font-black text-slate-900">{selectedToken.service}</p>
+                  </div>
+                </div>
+
+                {!selectedToken.isServing && (
+                   <div className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black tracking-widest uppercase">
+                     Live Position Tracking Active
+                   </div>
+                )}
+              </motion.div>
+            ) : (
+              <div className="h-full border-2 border-dashed border-slate-200 rounded-[3.5rem] flex flex-col items-center justify-center p-12 text-center space-y-4">
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300">
+                  <Search size={32} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Select a Token</h3>
+                  <p className="text-sm font-bold text-slate-400">Click on any token in the left pane to view detailed status intel.</p>
+                </div>
+              </div>
+            )}
+          </AnimatePresence>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function InsightItem({ icon, title, value, sub }: { icon: React.ReactNode, title: string, value: string, sub: string }) {
+
   return (
     <div className="flex gap-4">
       <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center border border-slate-100 shrink-0">{icon}</div>

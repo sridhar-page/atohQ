@@ -72,7 +72,7 @@ export default function StaffLogin() {
         <div className="text-center mb-10 space-y-4">
           <div className="inline-flex items-center gap-3 group px-4 py-2 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 transition-transform hover:scale-105">
             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-black text-sm">Q</div>
-            <span className="text-lg font-black text-slate-900 tracking-tighter italic">Q-EASE STAFF</span>
+            <span className="text-lg font-black text-slate-900 tracking-tighter italic">AtohQ STAFF</span>
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">Access Console</h1>
           <p className="text-slate-500 font-medium">Enterprise Gateway for Healthcare Professionals</p>

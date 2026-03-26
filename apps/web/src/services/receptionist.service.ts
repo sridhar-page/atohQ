@@ -3,10 +3,12 @@ import { BaseService } from './base.service';
 export interface ReceptionistQueue {
   queueId: string;
   serving: {
+    id: string;
     number: string;
     name: string;
     service: string;
   } | null;
+
   queue: Array<{
     id: string;
     number: string;
@@ -46,10 +48,12 @@ class ReceptionistService extends BaseService {
     return {
       queueId,
       serving: serving ? {
+        id: serving.id,
         number: serving.tokenNumber,
         name: serving.patientName,
         service: 'Clinical' // Mock or fetch from queue link
       } : null,
+
       queue: waiting.map(t => ({
         id: t.id,
         number: t.tokenNumber,
@@ -65,6 +69,11 @@ class ReceptionistService extends BaseService {
   async performAction(tokenId: string, action: 'CALL' | 'COMPLETE' | 'NO_SHOW'): Promise<unknown> {
     return this.post(`/api/tokens/${tokenId}/action`, { action });
   }
+
+  async completeAndNext(tokenId: string): Promise<unknown> {
+    return this.post(`/api/tokens/${tokenId}/complete-and-next`);
+  }
+
 
   async getStats(): Promise<ReceptionistStats> {
     return this.get<ReceptionistStats>('/api/tokens/stats');

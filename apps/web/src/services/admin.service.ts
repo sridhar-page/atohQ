@@ -2,11 +2,14 @@ import { BaseService } from './base.service';
 
 export interface AdminMetrics {
   uptime: string;
-  avgPatientFlow: string;
+  visitedToday: number;
+  servedToday: number;
+  waitingToday: number;
   systemLatency: string;
   securityScore: string;
   activeQueues: number;
 }
+
 
 export interface DepartmentOversight {
   id: string;
@@ -20,7 +23,14 @@ export interface AdminInsight {
   highestTraffic: { name: string; peak: string };
   bottleneck: { name: string; wait: string };
   revenueProjection: string;
+  serviceStats: {
+    avg: number;
+    max: number;
+    min: number;
+  };
+  hourlyFlow: Array<{ time: string; count: number }>;
 }
+
 
 class AdminService extends BaseService {
   async getMetrics(): Promise<AdminMetrics> {

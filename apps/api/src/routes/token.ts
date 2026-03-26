@@ -87,11 +87,58 @@ router.get('/:id/status', asyncHandler(async (req: any, res: any) => {
   });
 }));
 
+// Staff: Complete current token and call next
+router.post('/:id/complete-and-next', authMiddleware, roleMiddleware(['RECEPTIONIST', 'DOCTOR', 'ADMIN']), asyncHandler(async (req: any, res: any) => {
+  const prisma: PrismaClient = req.app.get('prisma');
+  const io = req.app.get('io');
+  const tokenId = req.params.id;
+
+  // 1. Find the current token to get its queueId
+  const currentToken = await prisma.token.findUnique({ where: { id: tokenId } });
+  if (!currentToken) return res.status(404).json({ message: 'Token not found' });
+
+  // 2. Complete the current token
+  const completedToken = await prisma.token.update({
+    where: { id: tokenId },
+    data: { 
+      status: TokenStatus.COMPLETED,
+      completedAt: new Date()
+    },
+  });
+
+  // 3. Find and call the next token in the same queue
+  const nextToken = await prisma.token.findFirst({
+    where: { 
+      queueId: currentToken.queueId, 
+      tenantId: currentToken.tenantId, 
+      status: TokenStatus.WAITING 
+    },
+    orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+  });
+
+  let calledToken: any = null;
+  if (nextToken) {
+    calledToken = await prisma.token.update({
+      where: { id: nextToken.id },
+      data: { 
+        status: TokenStatus.SERVING,
+        calledAt: new Date()
+      },
+    });
+    io.to(`queue:${currentToken.queueId}`).emit('tokenCalled', calledToken);
+  } else {
+    io.to(`queue:${currentToken.queueId}`).emit('queueUpdated', { type: 'TOKEN_COMPLETED', token: completedToken });
+  }
+
+  res.json({ completed: completedToken, next: calledToken });
+}));
+
 // Staff: Perform action on token
 router.post('/:id/action', authMiddleware, roleMiddleware(['DOCTOR', 'RECEPTIONIST', 'ADMIN']), asyncHandler(async (req: any, res: any) => {
   const prisma: PrismaClient = req.app.get('prisma');
   const io = req.app.get('io');
   const { action } = req.body;
+  const tokenId = req.params.id;
 
   let status: TokenStatus;
   switch (action) {
@@ -101,8 +148,31 @@ router.post('/:id/action', authMiddleware, roleMiddleware(['DOCTOR', 'RECEPTIONI
     default: return res.status(400).json({ message: 'Invalid action' });
   }
 
+  // Find the target token first
+  const targetToken = await prisma.token.findUnique({ where: { id: tokenId } });
+  if (!targetToken) return res.status(404).json({ message: 'Token not found' });
+
+  // Special Handling for CALL: If another token is already SERVING, complete it first
+  if (action === 'CALL') {
+    const existingServing = await prisma.token.findFirst({
+      where: { 
+        tenantId: targetToken.tenantId, 
+        queueId: targetToken.queueId,
+        status: TokenStatus.SERVING 
+      }
+    });
+
+    if (existingServing && existingServing.id !== tokenId) {
+      await prisma.token.update({
+        where: { id: existingServing.id },
+        data: { status: TokenStatus.COMPLETED, completedAt: new Date() }
+      });
+      // Optionally emit separate event, but queueUpdated for the current call will trigger a refresh anyway
+    }
+  }
+
   const updatedToken = await prisma.token.update({
-    where: { id: req.params.id },
+    where: { id: tokenId },
     data: { 
       status,
       calledAt: action === 'CALL' ? new Date() : undefined,
@@ -113,6 +183,7 @@ router.post('/:id/action', authMiddleware, roleMiddleware(['DOCTOR', 'RECEPTIONI
   io.to(`queue:${updatedToken.queueId}`).emit(action === 'CALL' ? 'tokenCalled' : 'queueUpdated', updatedToken);
   res.json(updatedToken);
 }));
+
 
 // Legacy/Compatibility
 router.post('/next/:queueId', authMiddleware, roleMiddleware(['DOCTOR', 'ADMIN']), asyncHandler(async (req: any, res: any) => {
@@ -146,7 +217,7 @@ router.get('/', authMiddleware, roleMiddleware(['RECEPTIONIST', 'DOCTOR', 'ADMIN
       tenantId: req.user.tenantId,
       createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) }
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'asc' },
     include: { queue: true }
   });
   res.json(tokens);

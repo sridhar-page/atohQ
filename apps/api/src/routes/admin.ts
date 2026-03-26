@@ -11,17 +11,20 @@ const asyncHandler = (fn: Function) => (req: any, res: any, next: any) => {
 // Admin: Global system metrics
 router.get('/metrics', authMiddleware, roleMiddleware(['ADMIN']), asyncHandler(async (req: any, res: any) => {
   const prisma: PrismaClient = req.app.get('prisma');
+  const today = new Date(new Date().setHours(0,0,0,0));
   
-  // Real stats calculation
-  const totalTokensToday = await prisma.token.count({
-    where: { createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } }
-  });
-
-  const activeQueues = await prisma.queue.count({ where: { isActive: true } });
+  const [visitedToday, servedToday, waitingToday, activeQueues] = await Promise.all([
+    prisma.token.count({ where: { tenantId: req.user.tenantId, createdAt: { gte: today } } }),
+    prisma.token.count({ where: { tenantId: req.user.tenantId, status: 'COMPLETED', createdAt: { gte: today } } }),
+    prisma.token.count({ where: { tenantId: req.user.tenantId, status: 'WAITING', createdAt: { gte: today } } }),
+    prisma.queue.count({ where: { tenantId: req.user.tenantId, isActive: true } })
+  ]);
 
   res.json({
     uptime: "99.98%",
-    avgPatientFlow: `${totalTokensToday}/d`,
+    visitedToday,
+    servedToday,
+    waitingToday,
     systemLatency: "24ms",
     securityScore: "A+",
     activeQueues
@@ -52,13 +55,67 @@ router.get('/departments', authMiddleware, roleMiddleware(['ADMIN']), asyncHandl
   res.json(formatted);
 }));
 
-// Admin: Operational Insights
+// Admin: Operational Insights & Stats
 router.get('/insights', authMiddleware, roleMiddleware(['ADMIN']), asyncHandler(async (req: any, res: any) => {
+  const prisma: PrismaClient = req.app.get('prisma');
+  const today = new Date(new Date().setHours(0,0,0,0));
+
+  // Calculate Service Times
+  const completedTokens = await prisma.token.findMany({
+    where: { 
+      tenantId: req.user.tenantId, 
+      status: 'COMPLETED', 
+      createdAt: { gte: today },
+      calledAt: { not: null },
+      completedAt: { not: null }
+    }
+  });
+
+  const serviceTimes = completedTokens.map(t => {
+    const duration = (t.completedAt!.getTime() - t.calledAt!.getTime()) / (1000 * 60);
+    return Math.max(1, Math.round(duration)); // Min 1 min
+  });
+
+  const avgServiceTime = serviceTimes.length > 0 
+    ? Math.round(serviceTimes.reduce((a, b) => a + b, 0) / serviceTimes.length) 
+    : 0;
+  const maxServiceTime = serviceTimes.length > 0 ? Math.max(...serviceTimes) : 0;
+  const minServiceTime = serviceTimes.length > 0 ? Math.min(...serviceTimes) : 0;
+
+  // Hourly Traffic Data (last 12 hours)
+  const hourlyFlow: any[] = [];
+
+  for (let i = 11; i >= 0; i--) {
+    const start = new Date();
+    start.setHours(start.getHours() - i, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(end.getHours() + 1);
+
+    const count = await prisma.token.count({
+      where: {
+        tenantId: req.user.tenantId,
+        createdAt: { gte: start, lt: end }
+      }
+    });
+
+    hourlyFlow.push({
+        time: start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        count
+    });
+  }
+
   res.json({
     highestTraffic: { name: "OPD Dept", peak: "11:30 AM" },
     bottleneck: { name: "Blood Test", wait: "1h 20m" },
-    revenueProjection: "$4,250"
+    revenueProjection: "$4,250",
+    serviceStats: {
+        avg: avgServiceTime,
+        max: maxServiceTime,
+        min: minServiceTime
+    },
+    hourlyFlow
   });
 }));
+
 
 export default router;
