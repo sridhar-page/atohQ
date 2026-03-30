@@ -12,7 +12,7 @@ const asyncHandler = (fn: Function) => (req: any, res: any, next: any) => {
 router.post('/join', asyncHandler(async (req: any, res: any) => {
   const prisma: PrismaClient = req.app.get('prisma');
   const io = req.app.get('io');
-  const { queueId, name, phone } = req.body;
+  const { queueId, name, phone, isEmergency } = req.body;
 
   if (!queueId || !name || !phone) {
     return res.status(400).json({ message: 'Missing required fields' });
@@ -23,29 +23,35 @@ router.post('/join', asyncHandler(async (req: any, res: any) => {
     return res.status(404).json({ message: 'Queue is not active or not found' });
   }
 
-  // Auto-fetch tenantId if not provided (MVP convenience)
   const tenantId = req.body.tenantId || queue.tenantId;
 
   const count = await prisma.token.count({ 
     where: { 
       queueId, 
       tenantId,
-      createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) } // Reset daily
+      createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) }
     } 
   });
   
-  const prefix = queue.name.substring(0, 1).toUpperCase();
+  const prefix = isEmergency ? 'E' : queue.name.substring(0, 1).toUpperCase();
   const tokenNumber = `${prefix}-${100 + count + 1}`;
 
   const token = await prisma.token.create({
-    data: { patientName: name, patientPhone: phone, queueId, tokenNumber, tenantId },
+    data: { 
+      patientName: name, 
+      patientPhone: phone, 
+      queueId, 
+      tokenNumber, 
+      tenantId,
+      priority: isEmergency ? 100 : 0
+    },
   });
 
-  // Calculate position
   const position = await prisma.token.count({
     where: {
       queueId,
       status: TokenStatus.WAITING,
+      priority: { lte: isEmergency ? 100 : 0 },
       createdAt: { lt: token.createdAt }
     }
   });
@@ -55,7 +61,7 @@ router.post('/join', asyncHandler(async (req: any, res: any) => {
   res.status(201).json({
     ...token,
     position: position + 1,
-    estWait: (position + 1) * 10 // Mock: 10 mins per person
+    estWait: (position + 1) * 10
   });
 }));
 
@@ -229,16 +235,23 @@ router.get('/stats', authMiddleware, roleMiddleware(['RECEPTIONIST', 'ADMIN']), 
   const tenantId = req.user.tenantId;
   const today = new Date(new Date().setHours(0,0,0,0));
 
-  const [waitingCount, completedCount] = await Promise.all([
+  const [waitingCount, completedCount, noShowCount, urgentCount] = await Promise.all([
     prisma.token.count({ where: { tenantId, status: TokenStatus.WAITING, createdAt: { gte: today } } }),
-    prisma.token.count({ where: { tenantId, status: TokenStatus.COMPLETED, createdAt: { gte: today } } })
+    prisma.token.count({ where: { tenantId, status: TokenStatus.COMPLETED, createdAt: { gte: today } } }),
+    prisma.token.count({ where: { tenantId, status: TokenStatus.NO_SHOW, createdAt: { gte: today } } }),
+    prisma.token.count({ where: { tenantId, priority: { gt: 0 }, status: TokenStatus.COMPLETED, createdAt: { gte: today } } })
   ]);
+
+  const totalClosed = completedCount + noShowCount;
+  const efficiency = totalClosed > 0 
+    ? `${((noShowCount / totalClosed) * 100).toFixed(1)}%` 
+    : "0%";
 
   res.json({
     waitingCount,
-    avgWaitTime: "12 mins", // Mock or calculate
-    efficiency: "94%",
-    urgentCount: 0
+    avgWaitTime: waitingCount > 0 ? `${waitingCount * 8} mins` : "0 mins",
+    efficiency,
+    urgentCount
   });
 }));
 

@@ -31,7 +31,7 @@ router.get('/active', asyncHandler(async (req: any, res: any) => {
     name: q.name,
     description: q.description,
     isOpen: q.isActive,
-    currentWait: `${q._count.tokens * 10} mins`
+    currentWait: `${q._count.tokens} ${q._count.tokens === 1 ? 'token' : 'tokens'} waiting`
   }));
 
   res.json(formatted);

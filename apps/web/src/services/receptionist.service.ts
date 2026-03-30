@@ -79,6 +79,10 @@ class ReceptionistService extends BaseService {
     return this.get<ReceptionistStats>('/api/tokens/stats');
   }
 
+  async createToken(data: { name: string, phone: string, queueId: string, isEmergency?: boolean }): Promise<unknown> {
+    return this.post('/api/tokens/join', data);
+  }
+
   async setQueueStatus(queueId: string, isPaused: boolean): Promise<unknown> {
     const action = isPaused ? 'pause' : 'resume';
     return this.patch(`/api/queues/${queueId}/${action}`);
