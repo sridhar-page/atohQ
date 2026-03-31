@@ -1316,7 +1316,7 @@ function DisplayView() {
         <div className="flex items-center gap-6 overflow-hidden">
           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] flex-shrink-0">Announcement</span>
           <div className="whitespace-nowrap flex gap-10">
-             <p className="text-xs font-bold text-slate-400 animate-marquee">Please have your token number ready &bull; Follow directional signs to rooms &bull; Maintain social distancing &bull; Thank you for choosing AtohQ Service Excellence &bull; Visit our pharmacy for prescriptions</p>
+             <p className="text-xs font-bold text-slate-400 animate-marquee">Please have your token number ready &bull; Follow directional signs to rooms &bull; Maintain social distancing &bull; Thank you for choosing  AwayQ Service Excellence &bull; Visit our pharmacy for prescriptions</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 ml-10">

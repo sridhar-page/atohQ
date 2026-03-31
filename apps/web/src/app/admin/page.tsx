@@ -60,7 +60,7 @@ export default function AdminDashboard() {
       <aside className="w-20 md:w-72 bg-slate-900 text-slate-400 p-6 flex flex-col gap-10 border-r border-slate-800">
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black brand-glow">Q</div>
-          <span className="hidden md:block text-2xl font-black text-white tracking-tighter italic">AtohQ ADMIN</span>
+          <span className="hidden md:block text-2xl font-black text-white tracking-tighter italic"> AwayQ ADMIN</span>
         </div>
 
         <nav className="flex-1 space-y-2">

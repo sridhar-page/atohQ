@@ -104,7 +104,7 @@ export default function JoinQueue() {
       <nav className="p-6 md:px-12 flex justify-between items-center bg-white/50 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-3 group cursor-pointer">
           <div className="w-10 h-10 bg-emerald-600 rounded-xl brand-glow flex items-center justify-center text-white font-black transform group-hover:rotate-6 transition-transform">Q</div>
-          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">AtohQ</span>
+          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">AwayQ</span>
         </div>
         <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-bold border border-emerald-100">
           ● Live & Active
@@ -205,7 +205,7 @@ export default function JoinQueue() {
       </main>
 
       <footer className="p-8 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">
-        &copy; 2026 AtohQ Smart Healthcare Solutions. All rights reserved.
+        &copy; 2026 AwayQ Smart Healthcare Solutions. All rights reserved.
       </footer>
     </div>
   );
