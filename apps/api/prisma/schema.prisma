@@ -22,7 +22,7 @@ model User {
   email     String   @unique
   password  String
   name      String
-  role      Role     @default("RECEPTIONIST")
+  role      Role     @default(RECEPTIONIST)
   tenantId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -50,7 +50,7 @@ model Token {
   tokenNumber  String
   patientName  String
   patientPhone String
-  status       TokenStatus @default("WAITING")
+  status       TokenStatus @default(WAITING)
   priority     Int         @default(0)
   queueId      String
   tenantId     String
