@@ -190,13 +190,12 @@ export default function ReceptionistDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       disabled={!queueData.serving || queueData.serving.length === 0}
-                      onClick={() => queueData.serving && queueData.serving.length > 0 && handleAction(queueData.serving[0].id, 'NO_SHOW')}
                       className="py-4 text-slate-600 font-black text-sm uppercase tracking-widest hover:bg-slate-50 rounded-2xl border border-transparent hover:border-slate-100 disabled:opacity-50 transition-all"
                     >
                       NO-SHOW
                     </button>
                     <button 
-                      disabled={!queueData.serving}
+                      disabled={!queueData.serving || queueData.serving.length === 0}
                       className="py-4 text-slate-600 font-black text-sm uppercase tracking-widest hover:bg-slate-50 rounded-2xl border border-transparent hover:border-slate-100 disabled:opacity-50 transition-all"
                     >
                       DELAY 5M
