@@ -4,12 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "build:cf": "opennextjs-cloudflare build",
-    "preview:cf": "wrangler dev",
-    "deploy:cf": "opennextjs-cloudflare build && wrangler deploy"
+    "pages:build": "npx @cloudflare/next-on-pages@1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -24,7 +22,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.18.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.37",
     "@types/react": "^19.2.14",
