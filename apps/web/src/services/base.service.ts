@@ -2,7 +2,7 @@ export class BaseService {
   protected baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || '';
   }
 
   private getHeaders(): HeadersInit {
