@@ -8,6 +8,7 @@ export interface AdminMetrics {
   systemLatency: string;
   securityScore: string;
   activeQueues: number;
+  avgPatientFlow: string;
 }
 
 
