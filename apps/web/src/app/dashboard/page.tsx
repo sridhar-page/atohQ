@@ -81,7 +81,7 @@ export default function MasterDashboard() {
       <aside className="w-full md:w-72 bg-white border-r border-slate-200 p-8 flex flex-col gap-10 sticky top-0 h-screen overflow-y-auto">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-600 rounded-xl brand-glow flex items-center justify-center text-white font-black">Q</div>
-          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">AtohQ</span>
+          <span className="text-2xl font-black text-slate-900 tracking-tighter italic">AwayQ</span>
         </div>
 
         <nav className="flex-1 space-y-2">
