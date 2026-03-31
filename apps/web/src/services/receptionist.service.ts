@@ -2,12 +2,14 @@ import { BaseService } from './base.service';
 
 export interface ReceptionistQueue {
   queueId: string;
-  serving: {
+  isPaused: boolean;
+  serving: Array<{
     id: string;
     number: string;
     name: string;
     service: string;
-  } | null;
+    room: string;
+  }>;
 
   queue: Array<{
     id: string;
@@ -35,24 +37,37 @@ export interface RawToken {
   priority: number;
   createdAt: string;
   queueId: string;
+  queue: {
+    name: string;
+    roomNumber: string | null;
+    isActive: boolean;
+  };
 }
 
 class ReceptionistService extends BaseService {
-  async getQueueData(): Promise<ReceptionistQueue> {
+  async getQueueData(departmentName?: string): Promise<ReceptionistQueue> {
     // For MVP, we'll fetch tokens and format them
-    const tokens = await this.get<RawToken[]>('/api/tokens');
-    const serving = tokens.find(t => t.status === 'SERVING');
+    let tokens = await this.get<RawToken[]>('/api/tokens');
+    
+    if (departmentName) {
+      tokens = tokens.filter(t => t.queue.name === departmentName);
+    }
+
+    const serving = tokens.filter(t => t.status === 'SERVING');
     const waiting = tokens.filter(t => t.status === 'WAITING');
     const queueId = tokens.length > 0 ? tokens[0].queueId : 'default-queue';
+    const isPaused = tokens.length > 0 ? !tokens[0].queue.isActive : false;
 
     return {
       queueId,
-      serving: serving ? {
-        id: serving.id,
-        number: serving.tokenNumber,
-        name: serving.patientName,
-        service: 'Clinical' // Mock or fetch from queue link
-      } : null,
+      isPaused,
+      serving: serving.map(t => ({
+        id: t.id,
+        number: t.tokenNumber,
+        name: t.patientName,
+        service: t.queue.name,
+        room: t.queue.roomNumber || 'TBD'
+      })).slice(0, 1), // Only show 1 serving slot for MVP
 
       queue: waiting.map(t => ({
         id: t.id,
@@ -61,7 +76,7 @@ class ReceptionistService extends BaseService {
         status: t.status,
         priority: t.priority,
         time: new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        service: 'Clinical'
+        service: t.queue.name
       }))
     };
   }

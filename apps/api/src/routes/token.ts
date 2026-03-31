@@ -28,10 +28,19 @@ router.post('/join', asyncHandler(async (req: any, res: any) => {
   const count = await prisma.token.count({ 
     where: { 
       queueId, 
-      tenantId,
       createdAt: { gte: new Date(new Date().setHours(0,0,0,0)) }
     } 
   });
+
+  if (count >= queue.maxTokensPerDay) {
+    return res.status(403).json({ message: 'Daily token limit reached for this department.' });
+  }
+
+  const now = new Date();
+  const currentStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  if (currentStr < queue.startTime || currentStr > queue.endTime) {
+     return res.status(403).json({ message: `Registrations are only open between ${queue.startTime} and ${queue.endTime}` });
+  }
   
   const prefix = isEmergency ? 'E' : queue.name.substring(0, 1).toUpperCase();
   const tokenNumber = `${prefix}-${100 + count + 1}`;
@@ -253,6 +262,22 @@ router.get('/stats', authMiddleware, roleMiddleware(['RECEPTIONIST', 'ADMIN']), 
     efficiency,
     urgentCount
   });
+}));
+
+// Patient: Cancel token
+router.post('/:id/cancel', asyncHandler(async (req: any, res: any) => {
+  const prisma: PrismaClient = req.app.get('prisma');
+  const io = req.app.get('io');
+  const tokenId = req.params.id;
+
+  const token = await prisma.token.update({
+    where: { id: tokenId },
+    data: { status: TokenStatus.CANCELLED },
+    include: { queue: true }
+  });
+
+  io.to(`queue:${token.queueId}`).emit('tokenUpdated', token);
+  res.json({ message: 'Token cancelled successfully' });
 }));
 
 export default router;
