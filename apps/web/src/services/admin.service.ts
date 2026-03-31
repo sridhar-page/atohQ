@@ -9,15 +9,20 @@ export interface AdminMetrics {
   securityScore: string;
   activeQueues: number;
   avgPatientFlow: string;
+  cancelledToday: number;
 }
 
 
 export interface DepartmentOversight {
   id: string;
   name: string;
+  roomNumber: string | null;
   flow: string;
   wait: string;
   status: 'Open' | 'Critical' | 'Low' | 'Closed';
+  maxTokensPerDay: number;
+  startTime: string;
+  endTime: string;
 }
 
 export interface AdminInsight {
@@ -44,6 +49,10 @@ class AdminService extends BaseService {
 
   async getInsights(): Promise<AdminInsight> {
     return this.get<AdminInsight>('/api/admin/insights');
+  }
+
+  async updateQueue(id: string, data: Partial<DepartmentOversight>): Promise<void> {
+    return this.patch<void>(`/api/queues/${id}`, data);
   }
 }
 

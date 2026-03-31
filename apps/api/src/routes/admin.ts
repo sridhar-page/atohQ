@@ -13,11 +13,12 @@ router.get('/metrics', authMiddleware, roleMiddleware(['ADMIN']), asyncHandler(a
   const prisma: PrismaClient = req.app.get('prisma');
   const today = new Date(new Date().setHours(0,0,0,0));
   
-  const [visitedToday, servedToday, waitingToday, activeQueues] = await Promise.all([
+  const [visitedToday, servedToday, waitingToday, activeQueues, cancelledToday] = await Promise.all([
     prisma.token.count({ where: { tenantId: req.user.tenantId, createdAt: { gte: today } } }),
     prisma.token.count({ where: { tenantId: req.user.tenantId, status: 'COMPLETED', createdAt: { gte: today } } }),
     prisma.token.count({ where: { tenantId: req.user.tenantId, status: 'WAITING', createdAt: { gte: today } } }),
-    prisma.queue.count({ where: { tenantId: req.user.tenantId, isActive: true } })
+    prisma.queue.count({ where: { tenantId: req.user.tenantId, isActive: true } }),
+    prisma.token.count({ where: { tenantId: req.user.tenantId, status: 'CANCELLED', createdAt: { gte: today } } })
   ]);
 
   res.json({
@@ -27,7 +28,8 @@ router.get('/metrics', authMiddleware, roleMiddleware(['ADMIN']), asyncHandler(a
     waitingToday,
     systemLatency: "24ms",
     securityScore: "A+",
-    activeQueues
+    activeQueues,
+    cancelledToday
   });
 }));
 
@@ -47,8 +49,12 @@ router.get('/departments', authMiddleware, roleMiddleware(['ADMIN']), asyncHandl
   const formatted = departments.map(d => ({
     id: d.id,
     name: d.name,
+    roomNumber: d.roomNumber,
     flow: `${d._count.tokens} Tokens`,
     wait: `${d._count.tokens * 10} mins`,
+    maxTokensPerDay: d.maxTokensPerDay,
+    startTime: d.startTime,
+    endTime: d.endTime,
     status: d.isActive ? (d._count.tokens > 10 ? 'Critical' : 'Open') : 'Closed'
   }));
 

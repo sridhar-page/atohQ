@@ -34,14 +34,19 @@ async function seed() {
   ];
 
   for (const q of queues) {
-    await prisma.queue.create({
-      data: {
-        name: q.name,
-        description: q.description,
-        tenantId: tenant.id,
-        isActive: true,
-      },
+    const existing = await prisma.queue.findFirst({
+      where: { name: q.name, tenantId: tenant.id }
     });
+    if (!existing) {
+      await prisma.queue.create({
+        data: {
+          name: q.name,
+          description: q.description,
+          tenantId: tenant.id,
+          isActive: true,
+        },
+      });
+    }
   }
 
   console.log('Queues seeded.');

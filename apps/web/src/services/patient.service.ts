@@ -32,6 +32,10 @@ class PatientService extends BaseService {
   async getTokenStatus(tokenId: string): Promise<TokenResponse> {
     return this.get<TokenResponse>(`/api/tokens/${tokenId}/status`);
   }
+
+  async cancelToken(tokenId: string): Promise<void> {
+    return this.post<void>(`/api/tokens/${tokenId}/cancel`, {});
+  }
 }
 
 export const patientService = new PatientService();
