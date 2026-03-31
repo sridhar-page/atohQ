@@ -11,7 +11,7 @@ on:
 
 env:
   AWS_REGION: ap-south-1 # Change this to your AWS region
-  ECR_REPOSITORY: demo-prompt # Change this to your ECR repository name
+  ECR_REPOSITORY: authoq-backend # Change this to your ECR repository name
 
 jobs:
   build-and-push:
