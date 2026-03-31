@@ -15,26 +15,30 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the API
-RUN npm run build --workspace=api
+# Build the API with debug checks
+RUN npm run build --workspace=api && \
+    ls -la apps/api/dist && \
+    [ -f apps/api/dist/index.js ] || (echo "ERROR: apps/api/dist/index.js not found after build!" && exit 1)
 
 # Prune devDependencies to keep the image small
-RUN npm prune --omit=dev
+# and VERIFY that express still exists in the node_modules structure.
+RUN npm prune --omit=dev && \
+    ( [ -d node_modules/express ] || [ -d apps/api/node_modules/express ] ) || (echo "ERROR: express removed by prune!" && exit 1)
 
 # Final stage
 FROM node:20-alpine
 
-WORKDIR /app
+# Set WORKDIR to the API folder to ensure Node finds local and root node_modules
+WORKDIR /app/apps/api
 
-# Copy built app
+# Copy root node_modules (where hoisted things are) to /app/node_modules
+COPY --from=builder /app/node_modules /app/node_modules
+
+# Copy built app and config into /app/apps/api/
 COPY --from=builder /app/apps/api/dist ./dist
-# Copy package.json and Prisma files
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/prisma ./prisma
-
-# Copy pruned node_modules (only production dependencies)
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/apps/api/node_modules ./node_modules
 
 EXPOSE 3001
 
