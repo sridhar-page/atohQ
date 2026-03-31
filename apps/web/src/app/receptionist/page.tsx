@@ -159,18 +159,18 @@ export default function ReceptionistDashboard() {
                </div>
 
                <div className="text-center space-y-4">
-                  {queueData.serving ? (
+                  {queueData.serving && queueData.serving.length > 0 ? (
                     <>
                       <motion.div 
                         initial={{ scale: 0.9 }}
                         animate={{ scale: 1 }}
                         className="text-8xl font-black text-slate-900 tracking-tighter"
                       >
-                        {queueData.serving.number}
+                        {queueData.serving[0].number}
                       </motion.div>
                       <div className="space-y-1">
-                        <p className="text-2xl font-black text-slate-900">{queueData.serving.name}</p>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{queueData.serving.service} / General Consultation</p>
+                        <p className="text-2xl font-black text-slate-900">{queueData.serving[0].name}</p>
+                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{queueData.serving[0].service} / General Consultation</p>
                       </div>
                     </>
                   ) : (
@@ -180,8 +180,8 @@ export default function ReceptionistDashboard() {
 
                <div className="flex flex-col gap-4 pt-4">
                   <button 
-                    disabled={!queueData.serving}
-                    onClick={() => queueData.serving && handleAction(queueData.serving.number, 'COMPLETE')} // Note: ID should be used if number isn't ID
+                    disabled={!queueData.serving || queueData.serving.length === 0}
+                    onClick={() => queueData.serving && queueData.serving.length > 0 && handleAction(queueData.serving[0].id, 'COMPLETE')}
                     className="w-full py-5 bg-emerald-600 text-white rounded-4xl font-black text-lg shadow-2xl shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
                   >
                     <UserCheck size={24} />
@@ -189,7 +189,8 @@ export default function ReceptionistDashboard() {
                   </button>
                   <div className="grid grid-cols-2 gap-4">
                     <button 
-                      disabled={!queueData.serving}
+                      disabled={!queueData.serving || queueData.serving.length === 0}
+                      onClick={() => queueData.serving && queueData.serving.length > 0 && handleAction(queueData.serving[0].id, 'NO_SHOW')}
                       className="py-4 text-slate-600 font-black text-sm uppercase tracking-widest hover:bg-slate-50 rounded-2xl border border-transparent hover:border-slate-100 disabled:opacity-50 transition-all"
                     >
                       NO-SHOW
